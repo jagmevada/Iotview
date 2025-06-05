@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IoT Sensor Dashboard - Advanced Monitoring</title>
+    <title>Preservation Room Sensors - Advanced Monitoring</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
@@ -110,6 +110,12 @@
             font-size: 1rem;
             cursor: pointer;
             transition: all 0.3s ease;
+        }
+
+        select option {
+            background: #1a1a2e;
+            color: white;
+            padding: 8px;
         }
 
         select:hover, button:hover {
@@ -350,7 +356,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌐 IoT Sensor Dashboard</h1>
+            <h1>🏛️ Preservation Room Sensors</h1>
             <p>Real-time Environmental Monitoring System</p>
         </div>
 
@@ -474,11 +480,7 @@
         }
 
         async function fetchLatestReadings() {
-            const cardsContainer = document.getElementById('sensor-cards');
             let activeSensors = 0;
-
-            // Clear existing cards
-            cardsContainer.innerHTML = '';
 
             for (let sensorId of SENSOR_IDS) {
                 try {
@@ -494,7 +496,7 @@
                     if (data && data.length > 0) {
                         const reading = data[0];
                         latestData[sensorId] = reading;
-                        createSensorCard(reading);
+                        updateSensorCard(reading);
                         activeSensors++;
                     }
                 } catch (error) {
@@ -505,9 +507,67 @@
             document.getElementById('active-sensors').textContent = activeSensors;
         }
 
+        function updateSensorCard(reading) {
+            const existingCard = document.querySelector(`[data-sensor-id="${reading.sensor_id}"]`);
+            
+            const timestamp = new Date(reading.timestamp).toLocaleString("en-IN", { 
+                timeZone: "Asia/Kolkata",
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const cardHTML = `
+                <div class="card-header">
+                    <div class="sensor-name">${reading.sensor_id.toUpperCase()}</div>
+                    <div class="sensor-status"></div>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric">
+                        <div class="metric-icon temperature">🌡️</div>
+                        <div class="metric-value temperature">${reading.t ? reading.t.toFixed(1) : '-'}</div>
+                        <div class="metric-label">Temperature (°C)</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-icon humidity">💧</div>
+                        <div class="metric-value humidity">${reading.h ? reading.h.toFixed(1) : '-'}</div>
+                        <div class="metric-label">Humidity (%)</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-icon pm25">🌪️</div>
+                        <div class="metric-value pm25">${reading.p ? reading.p.toFixed(1) : '-'}</div>
+                        <div class="metric-label">PM2.5 (µg/m³)</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-icon concentration">⚡</div>
+                        <div class="metric-value concentration">${reading.nc || '-'}</div>
+                        <div class="metric-label">NC Count</div>
+                    </div>
+                </div>
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.8rem; color: #a0a0a0; text-align: center;">
+                    📅 ${timestamp}
+                </div>
+            `;
+
+            if (existingCard) {
+                // Update existing card smoothly
+                existingCard.style.opacity = '0.7';
+                setTimeout(() => {
+                    existingCard.innerHTML = cardHTML;
+                    existingCard.style.opacity = '1';
+                }, 150);
+            } else {
+                // Create new card
+                createSensorCard(reading);
+            }
+        }
+
         function createSensorCard(reading) {
             const card = document.createElement('div');
             card.className = 'sensor-card';
+            card.setAttribute('data-sensor-id', reading.sensor_id);
             
             const timestamp = new Date(reading.timestamp).toLocaleString("en-IN", { 
                 timeZone: "Asia/Kolkata",
