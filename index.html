@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Sensor Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; background: #f8f9fa; }
+    h1 { text-align: center; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { padding: 0.75rem; border: 1px solid #ccc; text-align: center; }
+    th { background-color: #343a40; color: white; }
+    tr:nth-child(even) { background-color: #e9ecef; }
+  </style>
+</head>
+<body>
+  <h1>Latest Sensor Readings</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Sensor ID</th>
+        <th>Temperature (°C)</th>
+        <th>Humidity (%)</th>
+        <th>PM2.5 (µg/m³)</th>
+        <th>NC</th>
+        <th>Timestamp (IST)</th>
+      </tr>
+    </thead>
+    <tbody id="sensor-table-body"></tbody>
+  </table>
+
+  <script>
+    const SUPABASE_URL = "https://bhanhhhttmktpcewqnuf.supabase.co";
+    const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJoYW5oaGh0dG1rdHBjZXdxbnVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwMzIzNTQsImV4cCI6MjA2NDYwODM1NH0.sdrHcD6d3dmRnifGC_Xd9V30IjqcxEo-JLwRTSNwkwY";
+    const SENSOR_IDS = ["s1", "s2", "s3", "s4", "s5", "s6"];
+
+    async function fetchSensorData() {
+      const tbody = document.getElementById("sensor-table-body");
+      tbody.innerHTML = "";
+
+      for (const id of SENSOR_IDS) {
+        try {
+          const res = await fetch(`${SUPABASE_URL}/rest/v1/sensor_data?sensor_id=eq.${id}&order=timestamp.desc&limit=1`, {
+            headers: {
+              apikey: API_KEY,
+              Authorization: `Bearer ${API_KEY}`,
+              Accept: "application/json"
+            }
+          });
+          const data = await res.json();
+          if (data.length > 0) {
+            const row = data[0];
+            const timestamp = new Date(row.timestamp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${row.sensor_id}</td>
+              <td>${row.t?.toFixed(2) ?? "-"}</td>
+              <td>${row.h?.toFixed(1) ?? "-"}</td>
+              <td>${row.p?.toFixed(1) ?? "-"}</td>
+              <td>${row.nc ?? "-"}</td>
+              <td>${timestamp}</td>
+            `;
+            tbody.appendChild(tr);
+          }
+        } catch (err) {
+          console.error(`Error fetching data for ${id}`, err);
+        }
+      }
+    }
+
+    fetchSensorData();
+    setInterval(fetchSensorData, 30000);
+  </script>
+</body>
+</html>
