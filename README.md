@@ -1,3 +1,3 @@
 # Iotview
 
-https://jagmevada.github.io/iotview/
+https://jagmevada.github.io/Iotview/
