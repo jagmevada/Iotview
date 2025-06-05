@@ -1,77 +1,768 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Sensor Dashboard (Supabase JS)</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 2rem; background: #f8f9fa; }
-    h1 { text-align: center; }
-    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-    th, td { padding: 0.75rem; border: 1px solid #ccc; text-align: center; }
-    th { background-color: #343a40; color: white; }
-    tr:nth-child(even) { background-color: #e9ecef; }
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Sensor Dashboard - Advanced Monitoring</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
+            color: white;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            color: #a0a0a0;
+            font-size: 1.1rem;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 15px 25px;
+            margin-bottom: 30px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #00ff00;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-group label {
+            font-size: 0.9rem;
+            color: #a0a0a0;
+            font-weight: 500;
+        }
+
+        select, button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 12px 16px;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        select:hover, button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #00d4ff;
+        }
+
+        select:focus, button:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.2);
+        }
+
+        .refresh-btn {
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            border: none;
+            font-weight: 600;
+        }
+
+        .refresh-btn:hover {
+            background: linear-gradient(45deg, #0099cc, #007399);
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .sensor-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 25px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sensor-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            border-radius: 20px 20px 0 0;
+        }
+
+        .sensor-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .sensor-name {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #00d4ff;
+        }
+
+        .sensor-status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #00ff00;
+            animation: pulse 2s infinite;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .metric {
+            text-align: center;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .metric-icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            font-size: 0.85rem;
+            color: #a0a0a0;
+            font-weight: 500;
+        }
+
+        .temperature { color: #ff6b6b; }
+        .humidity { color: #4ecdc4; }
+        .pm25 { color: #ffd93d; }
+        .concentration { color: #6bcf7f; }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .chart-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #00d4ff;
+        }
+
+        .chart-info {
+            color: #a0a0a0;
+            font-size: 0.9rem;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            font-size: 1.2rem;
+            color: #a0a0a0;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left: 4px solid #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .last-update {
+            text-align: center;
+            color: #a0a0a0;
+            font-size: 0.9rem;
+            margin-top: 20px;
+        }
+
+        .alert {
+            background: rgba(255, 107, 107, 0.2);
+            border: 1px solid rgba(255, 107, 107, 0.5);
+            color: #ff6b6b;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .export-btn {
+            background: linear-gradient(45deg, #6bcf7f, #4ecdc4);
+            border: none;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .export-btn:hover {
+            background: linear-gradient(45deg, #4ecdc4, #3ba99c);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            .status-bar {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+
+            .chart-header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+        }
+    </style>
 </head>
 <body>
-  <h1>Latest Sensor Readings (Supabase JS)</h1>
-  <table>
-    <thead>
-      <tr>
-        <th>Sensor ID</th>
-        <th>Temperature (°C)</th>
-        <th>Humidity (%)</th>
-        <th>PM2.5 (µg/m³)</th>
-        <th>NC</th>
-        <th>Timestamp (IST)</th>
-      </tr>
-    </thead>
-    <tbody id="sensor-table-body"></tbody>
-  </table>
+    <div class="container">
+        <div class="header">
+            <h1>🌐 IoT Sensor Dashboard</h1>
+            <p>Real-time Environmental Monitoring System</p>
+        </div>
 
-  <script>
-    const SUPABASE_URL = "https://bhanhhhttmktpcewqnuf.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJoYW5oaGh0dG1rdHBjZXdxbnVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwMzIzNTQsImV4cCI6MjA2NDYwODM1NH0.sdrHcD6d3dmRnifGC_Xd9V30IjqcxEo-JLwRTSNwkwY";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    const SENSOR_IDS = ["s1", "s2", "s3", "s4", "s5", "s6"];
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-dot"></div>
+                <span>Connected to Supabase</span>
+            </div>
+            <div class="status-item">
+                <span>Active Sensors: <strong id="active-sensors">0</strong></span>
+            </div>
+            <div class="status-item">
+                <span>Last Update: <strong id="last-update">Loading...</strong></span>
+            </div>
+        </div>
 
-    async function fetchLatestReadings() {
-      const tbody = document.getElementById("sensor-table-body");
-      tbody.innerHTML = "";
+        <div class="alert" id="error-alert">
+            <strong>Connection Error:</strong> Unable to fetch sensor data. Please check your connection.
+        </div>
 
-      for (let id of SENSOR_IDS) {
-        const { data, error } = await supabase
-          .from("sensor_data")
-          .select("*")
-          .eq("sensor_id", id)
-          .order("timestamp", { ascending: false })
-          .limit(1);
+        <div class="controls">
+            <div class="control-group">
+                <label>Time Range</label>
+                <select id="timeRange">
+                    <option value="1">Last 1 Hour</option>
+                    <option value="6">Last 6 Hours</option>
+                    <option value="24" selected>Last 24 Hours</option>
+                    <option value="168">Last 7 Days</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Sensor Filter</label>
+                <select id="sensorFilter">
+                    <option value="all">All Sensors</option>
+                    <option value="s1">Sensor S1</option>
+                    <option value="s2">Sensor S2</option>
+                    <option value="s3">Sensor S3</option>
+                    <option value="s4">Sensor S4</option>
+                    <option value="s5">Sensor S5</option>
+                    <option value="s6">Sensor S6</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Chart Type</label>
+                <select id="chartType">
+                    <option value="temperature">Temperature</option>
+                    <option value="humidity">Humidity</option>
+                    <option value="pm25">PM2.5</option>
+                    <option value="concentration">Concentration</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Actions</label>
+                <div style="display: flex; gap: 10px;">
+                    <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+                    <button class="export-btn" onclick="exportData()">📊 Export</button>
+                </div>
+            </div>
+        </div>
 
-        if (error) {
-          console.error("Error fetching data for", id, error);
-          continue;
+        <div class="cards-grid" id="sensor-cards">
+            <!-- Sensor cards will be populated here -->
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-header">
+                <h2 class="chart-title">📈 Sensor Data Trends</h2>
+                <div class="chart-info">
+                    <span id="chart-info">Loading chart data...</span>
+                </div>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="sensorChart"></canvas>
+            </div>
+        </div>
+
+        <div class="last-update">
+            Auto-refresh every 30 seconds • Dashboard powered by Supabase
+        </div>
+    </div>
+
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = "https://bhanhhhttmktpcewqnuf.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJoYW5oaGh0dG1rdHBjZXdxbnVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwMzIzNTQsImV4cCI6MjA2NDYwODM1NH0.sdrHcD6d3dmRnifGC_Xd9V30IjqcxEo-JLwRTSNwkwY";
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const SENSOR_IDS = ["s1", "s2", "s3", "s4", "s5", "s6"];
+
+        let sensorChart;
+        let latestData = {};
+        let chartData = [];
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeChart();
+            fetchAllData();
+            setupEventListeners();
+            
+            // Auto-refresh every 30 seconds
+            setInterval(() => {
+                fetchAllData();
+            }, 30000);
+        });
+
+        function setupEventListeners() {
+            document.getElementById('timeRange').addEventListener('change', updateChart);
+            document.getElementById('sensorFilter').addEventListener('change', updateChart);
+            document.getElementById('chartType').addEventListener('change', updateChart);
         }
 
-        if (data && data.length > 0) {
-          const row = data[0];
-          const tr = document.createElement("tr");
-          const timestampIST = new Date(row.timestamp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-
-          tr.innerHTML = `
-            <td>${row.sensor_id}</td>
-            <td>${row.t?.toFixed(2) ?? "-"}</td>
-            <td>${row.h?.toFixed(1) ?? "-"}</td>
-            <td>${row.p?.toFixed(1) ?? "-"}</td>
-            <td>${row.nc ?? "-"}</td>
-            <td>${timestampIST}</td>
-          `;
-          tbody.appendChild(tr);
+        async function fetchAllData() {
+            try {
+                await fetchLatestReadings();
+                await fetchChartData();
+                updateLastUpdateTime();
+                hideError();
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                showError();
+            }
         }
-      }
-    }
 
-    fetchLatestReadings();
-    setInterval(fetchLatestReadings, 30000);
-  </script>
+        async function fetchLatestReadings() {
+            const cardsContainer = document.getElementById('sensor-cards');
+            let activeSensors = 0;
+
+            // Clear existing cards
+            cardsContainer.innerHTML = '';
+
+            for (let sensorId of SENSOR_IDS) {
+                try {
+                    const { data, error } = await supabase
+                        .from("sensor_data")
+                        .select("*")
+                        .eq("sensor_id", sensorId)
+                        .order("timestamp", { ascending: false })
+                        .limit(1);
+
+                    if (error) throw error;
+
+                    if (data && data.length > 0) {
+                        const reading = data[0];
+                        latestData[sensorId] = reading;
+                        createSensorCard(reading);
+                        activeSensors++;
+                    }
+                } catch (error) {
+                    console.error(`Error fetching data for ${sensorId}:`, error);
+                }
+            }
+
+            document.getElementById('active-sensors').textContent = activeSensors;
+        }
+
+        function createSensorCard(reading) {
+            const card = document.createElement('div');
+            card.className = 'sensor-card';
+            
+            const timestamp = new Date(reading.timestamp).toLocaleString("en-IN", { 
+                timeZone: "Asia/Kolkata",
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            card.innerHTML = `
+                <div class="card-header">
+                    <div class="sensor-name">${reading.sensor_id.toUpperCase()}</div>
+                    <div class="sensor-status"></div>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric">
+                        <div class="metric-icon temperature">🌡️</div>
+                        <div class="metric-value temperature">${reading.t ? reading.t.toFixed(1) : '-'}</div>
+                        <div class="metric-label">Temperature (°C)</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-icon humidity">💧</div>
+                        <div class="metric-value humidity">${reading.h ? reading.h.toFixed(1) : '-'}</div>
+                        <div class="metric-label">Humidity (%)</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-icon pm25">🌪️</div>
+                        <div class="metric-value pm25">${reading.p ? reading.p.toFixed(1) : '-'}</div>
+                        <div class="metric-label">PM2.5 (µg/m³)</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-icon concentration">⚡</div>
+                        <div class="metric-value concentration">${reading.nc || '-'}</div>
+                        <div class="metric-label">NC Count</div>
+                    </div>
+                </div>
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.8rem; color: #a0a0a0; text-align: center;">
+                    📅 ${timestamp}
+                </div>
+            `;
+
+            document.getElementById('sensor-cards').appendChild(card);
+        }
+
+        async function fetchChartData() {
+            const timeRange = parseInt(document.getElementById('timeRange').value);
+            const sensorFilter = document.getElementById('sensorFilter').value;
+            
+            const hoursAgo = new Date();
+            hoursAgo.setHours(hoursAgo.getHours() - timeRange);
+
+            try {
+                let query = supabase
+                    .from("sensor_data")
+                    .select("*")
+                    .gte("timestamp", hoursAgo.toISOString())
+                    .order("timestamp", { ascending: true });
+
+                if (sensorFilter !== 'all') {
+                    query = query.eq("sensor_id", sensorFilter);
+                }
+
+                const { data, error } = await query;
+
+                if (error) throw error;
+
+                chartData = data || [];
+                updateChart();
+            } catch (error) {
+                console.error('Error fetching chart data:', error);
+            }
+        }
+
+        function initializeChart() {
+            const ctx = document.getElementById('sensorChart').getContext('2d');
+            sensorChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'white'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                displayFormats: {
+                                    hour: 'HH:mm',
+                                    day: 'MM/DD'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'white'
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'white'
+                            }
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: 3,
+                            hoverRadius: 6
+                        },
+                        line: {
+                            borderWidth: 2,
+                            tension: 0.4
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChart() {
+            const chartType = document.getElementById('chartType').value;
+            const sensorFilter = document.getElementById('sensorFilter').value;
+
+            let dataKey, label, color;
+            switch (chartType) {
+                case 'temperature':
+                    dataKey = 't';
+                    label = 'Temperature (°C)';
+                    color = '#ff6b6b';
+                    break;
+                case 'humidity':
+                    dataKey = 'h';
+                    label = 'Humidity (%)';
+                    color = '#4ecdc4';
+                    break;
+                case 'pm25':
+                    dataKey = 'p';
+                    label = 'PM2.5 (µg/m³)';
+                    color = '#ffd93d';
+                    break;
+                case 'concentration':
+                    dataKey = 'nc';
+                    label = 'NC Count';
+                    color = '#6bcf7f';
+                    break;
+            }
+
+            const datasets = [];
+
+            if (sensorFilter === 'all') {
+                // Show all sensors
+                const colors = ['#ff6b6b', '#4ecdc4', '#ffd93d', '#6bcf7f', '#ff8c42', '#9b59b6'];
+                
+                SENSOR_IDS.forEach((sensorId, index) => {
+                    const sensorData = chartData
+                        .filter(d => d.sensor_id === sensorId && d[dataKey] !== null)
+                        .map(d => ({
+                            x: new Date(d.timestamp),
+                            y: d[dataKey]
+                        }));
+
+                    if (sensorData.length > 0) {
+                        datasets.push({
+                            label: `${sensorId.toUpperCase()} - ${label}`,
+                            data: sensorData,
+                            borderColor: colors[index % colors.length],
+                            backgroundColor: colors[index % colors.length] + '20',
+                            fill: false
+                        });
+                    }
+                });
+            } else {
+                // Show single sensor
+                const sensorData = chartData
+                    .filter(d => d.sensor_id === sensorFilter && d[dataKey] !== null)
+                    .map(d => ({
+                        x: new Date(d.timestamp),
+                        y: d[dataKey]
+                    }));
+
+                datasets.push({
+                    label: `${sensorFilter.toUpperCase()} - ${label}`,
+                    data: sensorData,
+                    borderColor: color,
+                    backgroundColor: color + '20',
+                    fill: true
+                });
+            }
+
+            sensorChart.data.datasets = datasets;
+            sensorChart.update();
+
+            // Update chart info
+            const totalPoints = datasets.reduce((sum, dataset) => sum + dataset.data.length, 0);
+            document.getElementById('chart-info').textContent = `${totalPoints} data points`;
+        }
+
+        function updateLastUpdateTime() {
+            const now = new Date().toLocaleString("en-IN", { 
+                timeZone: "Asia/Kolkata",
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            document.getElementById('last-update').textContent = now;
+        }
+
+        function refreshData() {
+            const button = document.querySelector('.refresh-btn');
+            button.innerHTML = '🔄 Refreshing...';
+            button.disabled = true;
+            
+            fetchAllData().then(() => {
+                button.innerHTML = '🔄 Refresh';
+                button.disabled = false;
+            });
+        }
+
+        function exportData() {
+            const dataToExport = {
+                timestamp: new Date().toISOString(),
+                latestReadings: latestData,
+                chartData: chartData
+            };
+            
+            const dataStr = JSON.stringify(dataToExport, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `sensor-data-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            URL.revokeObjectURL(url);
+        }
+
+        function showError() {
+            document.getElementById('error-alert').classList.add('show');
+        }
+
+        function hideError() {
+            document.getElementById('error-alert').classList.remove('show');
+        }
+    </script>
 </body>
 </html>
