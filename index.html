@@ -328,10 +328,10 @@ body {
   </div>
 
   <div class="tabs">
-    <button class="tab-button active" onclick="showTab('overview')">📊 Overview</button>
-    <button class="tab-button" onclick="showTab('analytics')">📈 Analytics</button>
-    <button class="tab-button" onclick="showTab('monitor')">🖥️ Monitor</button>
-    <button class="tab-button" onclick="showTab('alerts')">🚨 Alerts</button>
+    <button class="tab-button active" data-tab="overview" onclick="showTab('overview')">📊 Overview</button>
+    <button class="tab-button" data-tab="analytics" onclick="showTab('analytics')">📈 Analytics</button>
+    <button class="tab-button" data-tab="monitor" onclick="showTab('monitor')">🖥️ Monitor</button>
+    <button class="tab-button" data-tab="alerts" onclick="showTab('alerts')">🚨 Alerts</button>
     <!-- <button class="tab-button" onclick="showTab('schedule')">⏰ Schedule</button> -->
   </div>
 
@@ -424,14 +424,20 @@ body {
     }
 
     window.showTab = function(tabName) {
-      document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.remove('active');
-      });
-      document.querySelectorAll('.tab-button').forEach(button => {
-        button.classList.remove('active');
-      });
-      document.getElementById(tabName + '-tab').classList.add('active');
-      event.target.classList.add('active');
+      // Hide all tab contents and clear active buttons
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      document.querySelectorAll('.tab-button').forEach(button => button.classList.remove('active'));
+
+      // Show requested tab content
+      const tab = document.getElementById(tabName + '-tab');
+      if (tab) tab.classList.add('active');
+
+      // Mark the corresponding button active using data-tab
+      const btn = document.querySelector(`.tab-button[data-tab="${tabName}"]`);
+      if (btn) btn.classList.add('active');
+
+      // Persist last selected tab across reloads
+      try { localStorage.setItem('iotview_last_tab', tabName); } catch (e) {}
 
       // If switching to analytics, restore last settings and update chart
       if (tabName === 'analytics') {
@@ -443,6 +449,24 @@ body {
         window.fetchSchedules();
       }
     };
+
+    // Restore last selected tab on page load (default to 'overview')
+    (function(){
+      try {
+        const last = localStorage.getItem('iotview_last_tab') || 'overview';
+        // Delay slightly to ensure DOM is ready (buttons exist)
+        setTimeout(() => {
+          if (document.getElementById(last + '-tab')) {
+            window.showTab(last);
+          } else {
+            window.showTab('overview');
+          }
+        }, 0);
+      } catch (e) {
+        // fallback
+        window.showTab('overview');
+      }
+    })();
 
     // Import main app logic
     import './app.js';
