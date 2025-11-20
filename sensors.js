@@ -141,6 +141,38 @@ export function displayData(data) {
       return card;
     }
 
+    // Helper to create AC control card showing t1,t2 and relay1 toggle
+    function createACControlCard(sensorId, data) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      const iconClass = 'ac-icon';
+      const icon = '❄️';
+      const deviceType = 'Air Conditioner';
+
+      const topRow = `<div style="display:flex;gap:10px;justify-content:center;">
+        <div class="metric" style="flex:1;"><div class="metric-value">${data.t1 ?? '--'}°C</div><div class="metric-label">T1</div></div>
+        <div class="metric" style="flex:1;"><div class="metric-value">${data.t2 ?? '--'}°C</div><div class="metric-label">T2</div></div>
+      </div>`;
+
+      const controlsHtml = `
+        <button class="control-btn ${data.relay1 ? 'on' : 'off'}" onclick="sendCommand('${sensorId}', 'relay1', ${!data.relay1})">AC: ${data.relay1 ? 'ON' : 'OFF'}</button>
+      `;
+
+      card.innerHTML = `
+        <div class="card-title">
+          <div class="device-icon ${iconClass}">${icon}</div>
+          <div>
+            <div>${deviceType}</div>
+            <div style="font-size: 0.9rem; font-weight: normal; color: #666;">${sensorId.toUpperCase()}</div>
+          </div>
+        </div>
+        ${topRow}
+        <div class="controls">${controlsHtml}</div>
+        <div class="timestamp">Last Updated: ${new Date(data.timestamp).toLocaleString()}</div>
+      `;
+      return card;
+    }
+
     // Build monitor layout according to user mapping arranged in three rows
     if (strongAvailable.length || smallAvailable.length) {
       const ecs1 = latestBySensor['ecs_1'];
@@ -163,15 +195,23 @@ export function displayData(data) {
       smallMainSection.appendChild(smallGrid);
 
       const strongCtrl = document.createElement('div'); strongCtrl.className = 'room-section';
-      strongCtrl.innerHTML = `<h2 class="room-title">🛠️ Strong Room — Control Room</h2>`;
+      strongCtrl.innerHTML = `<h2 class="room-title">🛠️ Strong Room Control</h2>`;
       const strongCtrlGrid = document.createElement('div'); strongCtrlGrid.className = 'cards-grid';
       if (ecs1) strongCtrlGrid.appendChild(createPartialCard('ecs_1', ecs1, { showT2: true, showRH2: true, includeControls: true, titleSuffix: 'Control' }));
+      // Add AC controllers in strong room control grid: ac_1 and ac_3
+      const ac1 = latestBySensor['ac_1'];
+      const ac3 = latestBySensor['ac_3'];
+      if (ac1) strongCtrlGrid.appendChild(createACControlCard('ac_1', ac1));
+      if (ac3) strongCtrlGrid.appendChild(createACControlCard('ac_3', ac3));
       strongCtrl.appendChild(strongCtrlGrid);
 
       const smallCtrl = document.createElement('div'); smallCtrl.className = 'room-section';
-      smallCtrl.innerHTML = `<h2 class="room-title">🔧 Small Room — Control Room</h2>`;
+      smallCtrl.innerHTML = `<h2 class="room-title">🔧 Small Room Control</h2>`;
       const smallCtrlGrid = document.createElement('div'); smallCtrlGrid.className = 'cards-grid';
       if (ecs2) smallCtrlGrid.appendChild(createPartialCard('ecs_2', ecs2, { showT2: true, showRH2: true, includeControls: true, titleSuffix: 'Control' }));
+      // Add AC controller in small room control grid: ac_2
+      const ac2 = latestBySensor['ac_2'];
+      if (ac2) smallCtrlGrid.appendChild(createACControlCard('ac_2', ac2));
       smallCtrl.appendChild(smallCtrlGrid);
 
       const strongFar = document.createElement('div'); strongFar.className = 'room-section';
