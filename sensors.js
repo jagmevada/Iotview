@@ -979,15 +979,19 @@ function showScheduleModal(sensorId, sensorData) {
     if (sched && sched.raw) {
       if (sched.raw.timer_on_duration) {
         const parts = sched.raw.timer_on_duration.split(":");
-        const hhVal = parseInt(parts[0], 10) || defaultOnH;
-        const mmVal = parseInt(parts[1], 10) || defaultOnM;
+        let hhVal = parseInt(parts[0], 10);
+        let mmVal = parseInt(parts[1], 10);
+        if (isNaN(hhVal)) hhVal = defaultOnH;
+        if (isNaN(mmVal)) mmVal = defaultOnM;
         defaultOnH = hhVal;
         defaultOnM = mmVal;
       }
       if (sched.raw.timer_off_duration) {
         const parts2 = sched.raw.timer_off_duration.split(":");
-        const hhVal2 = parseInt(parts2[0], 10) || defaultOffH;
-        const mmVal2 = parseInt(parts2[1], 10) || defaultOffM;
+        let hhVal2 = parseInt(parts2[0], 10);
+        let mmVal2 = parseInt(parts2[1], 10);
+        if (isNaN(hhVal2)) hhVal2 = defaultOffH;
+        if (isNaN(mmVal2)) mmVal2 = defaultOffM;
         defaultOffH = hhVal2;
         defaultOffM = mmVal2;
       }
