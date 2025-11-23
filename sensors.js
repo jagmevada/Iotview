@@ -164,7 +164,7 @@ export function displayData(data) {
 
       card.innerHTML = `
         <div class="card-title">
-          <div class="device-icon" onclick="window.showScheduleModal && window.showScheduleModal('${sensorId}')" ${iconClass}">${icon}</div>
+          <div class="device-icon" onclick="window.showScheduleModal && window.showScheduleModal('${sensorId}', ${data.relay1})" ${iconClass}">${icon}</div>
           <div>
             <div>${deviceType}</div>
             <div style="font-size: 0.9rem; font-weight: normal; color: #666;">${sensorId.toUpperCase()}</div>
@@ -525,9 +525,12 @@ function showScheduleModal(sensorId, sensorData) {
           if (sched.id && sched.id !== -1) {
             const { error } = await window.supabase.from('schedule').update(payload).eq('id', sched.id);
             if (error) throw error;
+            // Toggle relay using current sensor data's relay1 state if available
+            await sendCommand(sensorId, 'relay1', sensorData);
             showNotification('Schedule updated', 'success');
           } else {
             const { error } = await window.supabase.from('schedule').insert([payload]);
+            await sendCommand(sensorId, 'relay1', sensorData);
             if (error) throw error;
             showNotification('Schedule saved', 'success');
           }
@@ -542,6 +545,7 @@ function showScheduleModal(sensorId, sensorData) {
         try {
           const numericId = Number(id);
           const { error } = await window.supabase.from('schedule').delete().eq('id', numericId);
+          await sendCommand(sensorId, 'relay1', sensorData);
           if (error) throw error;
           showNotification('Schedule deleted', 'success');
           await loadSchedulesFromDB(sensorId);
@@ -621,6 +625,7 @@ function showScheduleModal(sensorId, sensorData) {
             if (sched.id && sched.id !== -1) {
               try {
                 const { error } = await window.supabase.from('schedule').update({ enable: !!sched.enable }).eq('id', sched.id);
+                await sendCommand(sensorId, 'relay1', sensorData);
                 if (error) throw error;
                 showNotification('Schedule updated', 'success');
               } catch (err) {
@@ -838,12 +843,6 @@ function showScheduleModal(sensorId, sensorData) {
   document.body.appendChild(modal);
 }
 
-// Modal for timer (clock icon)
-function showTimerModal(sensorId, sensorData) {
-  // Use the same modal and flows as schedules — timers and schedules share the same UI and data fields
-  showScheduleModal(sensorId, sensorData);
-}
-
 // Show notification banner
 export function showNotification(message, type) {
   const notification = document.createElement('div');
@@ -888,4 +887,3 @@ window.sendCommand = sendCommand;
 window.showNotification = showNotification;
 // Expose schedule/timer modal openers so inline onclick handlers can call them
 window.showScheduleModal = showScheduleModal;
-window.showTimerModal = showTimerModal;
