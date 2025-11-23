@@ -668,17 +668,26 @@ function showScheduleModal(sensorId, sensorData) {
           daysRow.style.marginTop = '8px';
           daysRow.style.display = 'flex';
           daysRow.style.gap = '6px';
+          daysRow.className = 'days-row';
           dayShort.forEach((d,i)=>{
             const pill = document.createElement('div');
             pill.textContent = d;
             pill.style.padding = '4px 8px';
             pill.style.borderRadius = '10px';
-            pill.style.background = sched.days && sched.days.includes(i) ? '#56ab2f' : '#3a3f46';
+            pill.style.background = sched.setting === 'timer' ? '#606160' : sched.days && sched.days.includes(i) ? '#56ab2f' : '#3a3f46';
             pill.style.color = '#fff';
             pill.style.fontSize = '0.9em';
             daysRow.appendChild(pill);
           });
           item.appendChild(daysRow);
+          const id = document.createElement('div');
+          id.style.marginTop = '20px';
+          id.style.fontSize = '0.6em';
+          id.style.color = '#888';
+          id.style.position = 'absolute';
+          id.style.right = '15px';
+          id.textContent = `ID: ${sched.id || '-'}`;
+          daysRow.appendChild(id);
 
           schedList.appendChild(item);
         });
@@ -706,6 +715,7 @@ function showScheduleModal(sensorId, sensorData) {
           sched.setting = sched.setting === 'schedule' ? 'timer' : 'schedule';
           typeButton.textContent = sched.setting === 'schedule' ? 'Schedule' : 'Timer';
           typeButton.className = sched.setting === 'schedule' ? 'control-btn on' : 'control-btn';
+          daysWrap.style.display=sched.setting == 'schedule' ? 'flex' : 'none';
           // update modal title to reflect type
           title.textContent = sched.setting === 'schedule' ? (sched.id && sched.id !== -1 ? 'Edit Schedule' : 'New Schedule') : (sched.id && sched.id !== -1 ? 'Edit Timer' : 'New Timer');
         };
@@ -713,7 +723,7 @@ function showScheduleModal(sensorId, sensorData) {
         box.appendChild(typeButton);
 
         // time selectors (24-hour) — provide ON and OFF time picks
-        const timeRow = document.createElement('div'); timeRow.style.display='flex'; timeRow.style.flexDirection='column'; timeRow.style.gap='8px'; timeRow.style.marginBottom='12px';
+        const timeRow = document.createElement('div'); timeRow.style.display='flex'; timeRow.style.flexDirection='row'; timeRow.style.gap='8px'; timeRow.style.marginBottom='12px'; timeRow.style.justifyContent='space-between';
         // compute defaults from existing sched.raw if available
         let defaultOnH = 8, defaultOnM = 0, defaultOffH = 18, defaultOffM = 0;
         if (sched && sched.raw) {
@@ -750,9 +760,11 @@ function showScheduleModal(sensorId, sensorData) {
         box.appendChild(timeRow);
 
         // days
-        const daysWrap = document.createElement('div'); daysWrap.style.display='flex'; daysWrap.style.gap='6px'; daysWrap.style.flexWrap='wrap'; daysWrap.style.marginBottom='12px';
-        dayShort.forEach((d,i)=>{ const b=document.createElement('button'); b.type='button'; b.textContent=d; b.style.padding='6px 10px'; b.style.borderRadius='8px'; b.style.border='none'; b.style.cursor='pointer'; if(sched.days && sched.days.includes(i)) { b.style.background='#56ab2f'; } else { b.style.background='#353945'; } b.onclick=()=>{ if(!sched.days) sched.days=[]; if(sched.days.includes(i)) { sched.days = sched.days.filter(x=>x!==i); b.style.background='#353945'; } else { sched.days.push(i); b.style.background='#56ab2f'; } }; daysWrap.appendChild(b); });
-        box.appendChild(daysWrap);
+        const daysWrapContainer = document.createElement('div'); daysWrapContainer.style.display='flex'; daysWrapContainer.style.gap='6px'; daysWrapContainer.style.flexWrap='wrap'; daysWrapContainer.style.marginBottom='12px'; daysWrapContainer.style.height='28px';
+        const daysWrap = document.createElement('div'); daysWrap.style.display=sched.setting == 'schedule' ? 'flex' : 'none'; daysWrap.style.gap='6px'; daysWrap.style.flexWrap='wrap'; daysWrap.style.marginBottom='12px'; daysWrap.style.width='100%';
+        daysWrapContainer.appendChild(daysWrap);
+        dayShort.forEach((d,i)=>{ const b=document.createElement('button'); b.type='button'; b.textContent=d; b.style.padding='6px 10px'; b.style.borderRadius='8px'; b.style.border='none'; b.style.cursor='pointer'; b.style.flexGrow='1'; if(sched.days && sched.days.includes(i)) { b.style.background='#56ab2f'; } else { b.style.background='#353945'; } b.onclick=()=>{ if(!sched.days) sched.days=[]; if(sched.days.includes(i)) { sched.days = sched.days.filter(x=>x!==i); b.style.background='#353945'; } else { sched.days.push(i); b.style.background='#56ab2f'; } }; daysWrap.appendChild(b); });
+        box.appendChild(daysWrapContainer);
 
         // buttons
         const buttons = document.createElement('div'); buttons.style.display='flex'; buttons.style.gap='8px';
