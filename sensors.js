@@ -138,6 +138,13 @@ export function displayData(data) {
         <div class="controls">${controlsHtml}</div>
         <div class="timestamp">Last Updated: ${new Date(data.timestamp).toLocaleString()}</div>
       `;
+      // attach click handler to open settings modal with this sensor's data
+      const iconEl = card.querySelector('.device-icon');
+      if (iconEl) {
+        iconEl.addEventListener('click', () => {
+          if (window.showDeviceSettingModal) window.showDeviceSettingModal(sensorId, data);
+        });
+      }
       return card;
     }
 
@@ -170,6 +177,13 @@ export function displayData(data) {
         <div class="controls">${controlsHtml}</div>
         <div class="timestamp">Last Updated: ${new Date(data.timestamp).toLocaleString()}</div>
       `;
+      // attach click handler to open settings modal with this sensor's data
+      const iconEl = card.querySelector('.device-icon');
+      if (iconEl) {
+        iconEl.addEventListener('click', () => {
+          if (window.showDeviceSettingModal) window.showDeviceSettingModal(sensorId, data);
+        });
+      }
       return card;
     }
 
@@ -358,6 +372,13 @@ function createSensorCard(sensorId, d) {
       Last Updated: ${new Date(d.timestamp).toLocaleString()}
     </div>
   `;
+  // attach click handler to open settings modal with this sensor's data
+  const iconEl = card.querySelector('.device-icon');
+  if (iconEl) {
+    iconEl.addEventListener('click', () => {
+      if (window.showDeviceSettingModal) window.showDeviceSettingModal(sensorId, d);
+    });
+  }
   return card;
 }
 
@@ -856,6 +877,250 @@ function showScheduleModal(sensorId, sensorData) {
   modal.appendChild(content);
   document.body.appendChild(modal);
 }
+
+// Modal for device settings (Schedule / Timer / Stop)
+export function showDeviceSettingModal(sensorId, sensorData) {
+  // Remove existing modal if any
+  const old = document.getElementById('device-setting-modal');
+  if (old) old.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'device-setting-modal';
+  modal.style.position = 'fixed';
+  modal.style.top = '0';
+  modal.style.left = '0';
+  modal.style.width = '100vw';
+  modal.style.height = '100vh';
+  modal.style.background = 'rgba(0,0,0,0.45)';
+  modal.style.zIndex = '10000';
+  modal.style.display = 'flex';
+  modal.style.alignItems = 'center';
+  modal.style.justifyContent = 'center';
+
+  const content = document.createElement('div');
+  content.style.background = '#23272f';
+  content.style.borderRadius = '18px';
+  content.style.padding = '18px';
+  content.style.width = '92vw';
+  content.style.maxWidth = '520px';
+  content.style.boxShadow = '0 8px 32px rgba(0,0,0,0.25)';
+  content.style.position = 'relative';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '×';
+  closeBtn.style.position = 'absolute';
+  closeBtn.style.top = '8px';
+  closeBtn.style.right = '12px';
+  closeBtn.style.background = 'none';
+  closeBtn.style.border = 'none';
+  closeBtn.style.fontSize = '1.8rem';
+  closeBtn.style.color = '#fff';
+  closeBtn.style.cursor = 'pointer';
+  closeBtn.onclick = () => modal.remove();
+  content.appendChild(closeBtn);
+
+  const title = document.createElement('h2');
+  title.textContent = `${sensorId.toUpperCase()} Settings`;
+  title.style.color = '#fff';
+  title.style.margin = '4px 0 12px 0';
+  content.appendChild(title);
+
+  // target selector (relay1/relay2)
+  const targetRow = document.createElement('div');
+  targetRow.style.display = 'flex';
+  targetRow.style.gap = '8px';
+  targetRow.style.alignItems = 'center';
+  targetRow.style.marginBottom = '10px';
+  targetRow.innerHTML = `<div style="color:#ccc;min-width:90px;">Target:</div>`;
+  const targetSelect = document.createElement('select');
+  targetSelect.style.padding = '8px 10px';
+  targetSelect.style.borderRadius = '8px';
+  targetSelect.style.background = '#1f2226';
+  targetSelect.style.color = '#fff';
+  ['relay1','relay2'].forEach(t => {
+    const o = document.createElement('option'); o.value = t; o.textContent = t; targetSelect.appendChild(o);
+  });
+  targetRow.appendChild(targetSelect);
+  content.appendChild(targetRow);
+
+  // Tabs/buttons for modes
+  const tabs = document.createElement('div');
+  tabs.style.display = 'flex';
+  tabs.style.gap = '8px';
+  tabs.style.marginBottom = '12px';
+  const btnSchedule = document.createElement('button');
+  btnSchedule.textContent = 'Schedule';
+  const btnTimer = document.createElement('button');
+  btnTimer.textContent = 'Timer';
+  const btnStop = document.createElement('button');
+  btnStop.textContent = 'Stop';
+  [btnSchedule, btnTimer, btnStop].forEach(b => {
+    b.className = 'control-btn';
+    b.style.padding = '8px 12px';
+    b.style.borderRadius = '10px';
+    b.style.background = '#353945';
+    b.style.color = '#fff';
+    tabs.appendChild(b);
+  });
+  btnSchedule.classList.add('on'); btnSchedule.style.background = '#56ab2f';
+  content.appendChild(tabs);
+
+  // Content area
+  const pane = document.createElement('div');
+  pane.style.minHeight = '120px';
+  pane.style.color = '#fff';
+
+  // Schedule pane
+  const schedulePane = document.createElement('div');
+  schedulePane.style.display = 'block';
+  schedulePane.innerHTML = `
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+      <div style="min-width:90px;color:#ccc;">Time of day:</div>
+      <input type="time" id="setting-time" style="padding:8px;border-radius:8px;background:#1f2226;color:#fff;border:none;">
+      <label style="margin-left:8px;display:flex;align-items:center;gap:8px;color:#ccc;"><input type="checkbox" id="setting-state"> ON</label>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;" id="days-row"></div>
+  `;
+  // days toggles
+  const dayNames = ['sun','mon','tue','wed','thu','fri','sat'];
+  const daysRow = schedulePane.querySelector('#days-row');
+  dayNames.forEach(d => {
+    const pill = document.createElement('button');
+    pill.type = 'button';
+    pill.textContent = d.toUpperCase().slice(0,3);
+    pill.dataset.day = d;
+    pill.style.padding = '6px 10px'; pill.style.borderRadius = '10px';
+    pill.style.background = '#353945'; pill.style.color = '#fff'; pill.style.border = 'none';
+    pill.onclick = (e) => { e.preventDefault(); pill.classList.toggle('active'); pill.style.background = pill.classList.contains('active') ? '#56ab2f' : '#353945'; };
+    daysRow.appendChild(pill);
+  });
+
+  // Timer pane
+  const timerPane = document.createElement('div');
+  timerPane.style.display = 'none';
+  timerPane.innerHTML = `
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+      <div style="min-width:90px;color:#ccc;">ON duration:</div>
+      <input type="time" id="timer-on" step="1" value="00:10:00" style="padding:8px;border-radius:8px;background:#1f2226;color:#fff;border:none;">
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+      <div style="min-width:90px;color:#ccc;">OFF duration:</div>
+      <input type="time" id="timer-off" step="1" value="00:05:00" style="padding:8px;border-radius:8px;background:#1f2226;color:#fff;border:none;">
+    </div>
+  `;
+
+  // Stop pane (simple explanation)
+  const stopPane = document.createElement('div');
+  stopPane.style.display = 'none';
+  stopPane.innerHTML = `<div style="color:#fff;">Stopping both schedule and timer will clear active settings and set device to manual control.</div>`;
+
+  pane.appendChild(schedulePane);
+  pane.appendChild(timerPane);
+  pane.appendChild(stopPane);
+  content.appendChild(pane);
+
+  // Footer actions
+  const footer = document.createElement('div');
+  footer.style.display = 'flex';
+  footer.style.justifyContent = 'flex-end';
+  footer.style.gap = '10px';
+  footer.style.marginTop = '12px';
+
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'control-btn on';
+  saveBtn.textContent = 'Save';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'control-btn';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.onclick = () => modal.remove();
+  footer.appendChild(cancelBtn);
+  footer.appendChild(saveBtn);
+  content.appendChild(footer);
+
+  // Tab toggles
+  function setMode(mode) {
+    btnSchedule.style.background = mode === 'schedule' ? '#56ab2f' : '#353945';
+    btnTimer.style.background = mode === 'timer' ? '#56ab2f' : '#353945';
+    btnStop.style.background = mode === 'off' ? '#56ab2f' : '#353945';
+    schedulePane.style.display = mode === 'schedule' ? 'block' : 'none';
+    timerPane.style.display = mode === 'timer' ? 'block' : 'none';
+    stopPane.style.display = mode === 'off' ? 'block' : 'none';
+  }
+  btnSchedule.onclick = () => setMode('schedule');
+  btnTimer.onclick = () => setMode('timer');
+  btnStop.onclick = () => setMode('off');
+
+  // Prefill if sensorData provided (best-effort)
+  if (sensorData) {
+    // choose sensible defaults
+    try {
+      // leave defaults; optionally you could map existing settings
+    } catch(e){}
+  }
+
+  // Helper to read duration from input (time input may be HH:MM or HH:MM:SS)
+  function normaliseTimeInput(val) {
+    if (!val) return null;
+    if (val.length === 5) return `${val}:00`;
+    return val;
+  }
+
+  // Save handler
+  saveBtn.onclick = async () => {
+    const target = targetSelect.value;
+    // Determine mode
+    const mode = schedulePane.style.display === 'block' ? 'schedule' : (timerPane.style.display === 'block' ? 'timer' : 'off');
+
+    const payload = {
+      sensor_id: sensorId,
+      target: target,
+      time_of_day: null,
+      state: null,
+      mon: false, tue: false, wed: false, thu: false, fri: false, sat: false, sun: false,
+      setting: mode,
+      timer_on_duration: null,
+      timer_off_duration: null,
+      created_at: new Date().toISOString()
+    };
+
+    if (mode === 'schedule') {
+      const t = content.querySelector('#setting-time').value;
+      payload.time_of_day = t ? (t.length === 5 ? `${t}:00` : t) : null;
+      payload.state = !!content.querySelector('#setting-state').checked;
+      const pills = schedulePane.querySelectorAll('button[data-day]');
+      pills.forEach(p => { payload[p.dataset.day] = p.classList.contains('active'); });
+    } else if (mode === 'timer') {
+      payload.state = null; // per spec
+      const onVal = normaliseTimeInput(content.querySelector('#timer-on').value);
+      const offVal = normaliseTimeInput(content.querySelector('#timer-off').value);
+      payload.timer_on_duration = onVal;
+      payload.timer_off_duration = offVal;
+    } else if (mode === 'off') {
+      // leave fields null; setting off
+      payload.state = null;
+    }
+
+    // Persist to Supabase - ASSUMPTION: table name is `device_settings`.
+    try {
+      const { error } = await window.supabase.from('schedule').insert([payload]);
+      if (error) throw error;
+      showNotification('Settings saved', 'success');
+      modal.remove();
+      // refresh data after small delay
+      setTimeout(fetchSensorData, 800);
+    } catch (err) {
+      console.error('Save settings error', err);
+      showNotification('Failed to save settings', 'error');
+    }
+  };
+
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+}
+
+// Expose globally for event handlers created earlier
+window.showDeviceSettingModal = showDeviceSettingModal;
+
 
 // Modal for timer (clock icon)
 function showTimerModal(sensorId, sensorData) {
