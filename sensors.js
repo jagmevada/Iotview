@@ -1024,6 +1024,14 @@ function showScheduleModal(sensorId, sensorData) {
     });
     onWrap.appendChild(onHH);
     onWrap.appendChild(onMM);
+    // Ensure the selects reflect the parsed defaults (hours/minutes) coming from timer_*_duration
+    // (set as strings because option values are strings when read from the DOM)
+    try {
+      onHH.value = String(defaultOnH);
+      onMM.value = String(defaultOnM);
+    } catch (e) {
+      // ignore if setting fails for any reason
+    }
 
     // OFF time
     const offWrap = document.createElement("div");
@@ -1057,6 +1065,12 @@ function showScheduleModal(sensorId, sensorData) {
     });
     offWrap.appendChild(offHH);
     offWrap.appendChild(offMM);
+    try {
+      offHH.value = String(defaultOffH);
+      offMM.value = String(defaultOffM);
+    } catch (e) {
+      // ignore if setting fails for any reason
+    }
 
     timeRow.appendChild(onWrap);
     timeRow.appendChild(offWrap);
