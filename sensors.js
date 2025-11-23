@@ -925,23 +925,8 @@ export function showDeviceSettingModal(sensorId, sensorData) {
   title.style.margin = '4px 0 12px 0';
   content.appendChild(title);
 
-  // target selector (relay1/relay2)
-  const targetRow = document.createElement('div');
-  targetRow.style.display = 'flex';
-  targetRow.style.gap = '8px';
-  targetRow.style.alignItems = 'center';
-  targetRow.style.marginBottom = '10px';
-  targetRow.innerHTML = `<div style="color:#ccc;min-width:90px;">Target:</div>`;
-  const targetSelect = document.createElement('select');
-  targetSelect.style.padding = '8px 10px';
-  targetSelect.style.borderRadius = '8px';
-  targetSelect.style.background = '#1f2226';
-  targetSelect.style.color = '#fff';
-  ['relay1','relay2'].forEach(t => {
-    const o = document.createElement('option'); o.value = t; o.textContent = t; targetSelect.appendChild(o);
-  });
-  targetRow.appendChild(targetSelect);
-  content.appendChild(targetRow);
+  // target is fixed to relay1 by default (no selector shown)
+  const defaultTarget = 'relay1';
 
   // Tabs/buttons for modes
   const tabs = document.createElement('div');
@@ -977,7 +962,15 @@ export function showDeviceSettingModal(sensorId, sensorData) {
     <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
       <div style="min-width:90px;color:#ccc;">Time of day:</div>
       <input type="time" id="setting-time" style="padding:8px;border-radius:8px;background:#1f2226;color:#fff;border:none;">
-      <label style="margin-left:8px;display:flex;align-items:center;gap:8px;color:#ccc;"><input type="checkbox" id="setting-state"> ON</label>
+      <!-- Styled toggle switch -->
+      <div style="display:flex;align-items:center;gap:8px;margin-left:8px;">
+        <label class="switch" style="position:relative;display:inline-block;width:56px;height:28px;">
+          <input type="checkbox" id="setting-state" style="opacity:0;width:0;height:0;">
+          <span class="slider" style="position:absolute;top:0;left:0;right:0;bottom:0;background:#353945;border-radius:28px;transition:background .25s;"></span>
+          <span class="knob" style="position:absolute;top:3px;left:3px;width:22px;height:22px;background:#fff;border-radius:50%;transition:left .25s;"></span>
+        </label>
+        <span id="setting-state-label" style="color:#fff;font-weight:600;min-width:36px;">OFF</span>
+      </div>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;" id="days-row"></div>
   `;
@@ -995,17 +988,45 @@ export function showDeviceSettingModal(sensorId, sensorData) {
     daysRow.appendChild(pill);
   });
 
+  // Wire up the styled ON/OFF toggle so the UI reflects state immediately
+  try {
+    const stateCheckbox = schedulePane.querySelector('#setting-state');
+    const stateLabel = schedulePane.querySelector('#setting-state-label');
+    const slider = schedulePane.querySelector('.slider');
+    const knob = schedulePane.querySelector('.knob');
+    function refreshStateUI() {
+      if (!stateCheckbox) return;
+      if (stateCheckbox.checked) {
+        if (slider) slider.style.background = '#56ab2f';
+        if (knob) knob.style.left = '31px';
+        if (stateLabel) stateLabel.textContent = 'ON';
+      } else {
+        if (slider) slider.style.background = '#353945';
+        if (knob) knob.style.left = '3px';
+        if (stateLabel) stateLabel.textContent = 'OFF';
+      }
+    }
+    if (stateCheckbox) {
+      stateCheckbox.addEventListener('change', refreshStateUI);
+      // initialize appearance
+      refreshStateUI();
+    }
+  } catch (e) {
+    // non-fatal: if anything fails, the plain checkbox still works for saving
+    console.warn('Toggle UI init error', e);
+  }
+
   // Timer pane
   const timerPane = document.createElement('div');
   timerPane.style.display = 'none';
   timerPane.innerHTML = `
     <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
       <div style="min-width:90px;color:#ccc;">ON duration:</div>
-      <input type="time" id="timer-on" step="1" value="00:10:00" style="padding:8px;border-radius:8px;background:#1f2226;color:#fff;border:none;">
+      <input type="time" id="timer-on" step="60" value="00:10" style="padding:8px;border-radius:8px;background:#1f2226;color:#fff;border:none;">
     </div>
     <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
       <div style="min-width:90px;color:#ccc;">OFF duration:</div>
-      <input type="time" id="timer-off" step="1" value="00:05:00" style="padding:8px;border-radius:8px;background:#1f2226;color:#fff;border:none;">
+      <input type="time" id="timer-off" step="60" value="00:05" style="padding:8px;border-radius:8px;background:#1f2226;color:#fff;border:none;">
     </div>
   `;
 
@@ -1067,7 +1088,7 @@ export function showDeviceSettingModal(sensorId, sensorData) {
 
   // Save handler
   saveBtn.onclick = async () => {
-    const target = targetSelect.value;
+    const target = defaultTarget;
     // Determine mode
     const mode = schedulePane.style.display === 'block' ? 'schedule' : (timerPane.style.display === 'block' ? 'timer' : 'off');
 
