@@ -158,20 +158,20 @@ export function displayData(data) {
         <button class="control-btn ${data.relay1 ? 'on' : 'off'}" onclick="sendCommand('${sensorId}', 'relay1', ${!data.relay1})">AC: ${data.relay1 ? 'ON' : 'OFF'}</button>
       `;
       // Add schedule and timer icons next to controls
-      const extraControls = `
-        <button class="icon-btn" title="Schedules" onclick="window.showScheduleModal && window.showScheduleModal('${sensorId}')" style="margin-left:8px;">📅</button>
-      `;
+      // const extraControls = `
+      //   <button class="icon-btn" title="Schedules" onclick="window.showScheduleModal && window.showScheduleModal('${sensorId}')" style="margin-left:8px;">📅</button>
+      // `;
 
       card.innerHTML = `
         <div class="card-title">
-          <div class="device-icon ${iconClass}">${icon}</div>
+          <div class="device-icon" onclick="window.showScheduleModal && window.showScheduleModal('${sensorId}')" ${iconClass}">${icon}</div>
           <div>
             <div>${deviceType}</div>
             <div style="font-size: 0.9rem; font-weight: normal; color: #666;">${sensorId.toUpperCase()}</div>
           </div>
         </div>
         ${topRow}
-  <div class="controls">${controlsHtml}${extraControls}</div>
+  <div class="controls">${controlsHtml}</div>
         <div class="timestamp">Last Updated: ${new Date(data.timestamp).toLocaleString()}</div>
       `;
       return card;
@@ -463,8 +463,8 @@ function showScheduleModal(sensorId, sensorData) {
             const displayTime = onStr && offStr ? `${onStr} / ${offStr}` : (onStr || offStr || `${hour.toString().padStart(2,'0')}:${minute.toString().padStart(2,'0')}`);
             return {
               id: row.id,
-              state: row.state === true,
-              enabled: (row.Enable === true) || (row.enable === true) || (row.enabled === true),
+              state: row.state,
+              enable: row.enable,
               hour,
               minute,
               onHour,
@@ -473,6 +473,7 @@ function showScheduleModal(sensorId, sensorData) {
               offMinute,
               displayTime,
               days: days.length ? days : [1,2,3,4,5], // default weekdays
+              setting: row.setting || 'schedule',
               raw: row
             };
           });
@@ -518,7 +519,7 @@ function showScheduleModal(sensorId, sensorData) {
             // prefer explicitly provided timer fields (from edit modal), otherwise fall back to single-time logic
             timer_on_duration: (typeof sched.timer_on_duration !== 'undefined' && sched.timer_on_duration !== null) ? sched.timer_on_duration : (sched.state ? timeStr : null),
             timer_off_duration: (typeof sched.timer_off_duration !== 'undefined' && sched.timer_off_duration !== null) ? sched.timer_off_duration : (sched.state ? null : timeStr),
-            enable: !!sched.enabled
+            enable: !!sched.enable
           };
 
           if (sched.id && sched.id !== -1) {
@@ -566,14 +567,12 @@ function showScheduleModal(sensorId, sensorData) {
         });
 
         sorted.forEach((sched, idx) => {
-          console.log(sched);
-          
           const item = document.createElement('div');
           item.style.display = 'flex';
           item.style.flexDirection = 'column';
           item.style.padding = '12px';
           item.style.marginBottom = '10px';
-          item.style.background = sched.enabled === false ? '#2a2d32' : '#2f3339';
+          item.style.background = sched.enable === false ? '#2a2d32' : '#2f3339';
           item.style.borderRadius = '12px';
 
           const top = document.createElement('div');
@@ -583,29 +582,45 @@ function showScheduleModal(sensorId, sensorData) {
 
           const timeStr = sched.displayTime || `${sched.hour.toString().padStart(2,'0')}:${sched.minute.toString().padStart(2,'0')}`;
           const left = document.createElement('div');
-          left.innerHTML = `<div style="font-weight:600;color:#fff;font-size:1.05em;">${timeStr}</div><div style="margin-top:6px;color:#ccc;font-size:0.95em;">${sched.enabled === false ? '<span style="color:#999;">Disabled</span>' : `<span style="color:#9dbfdf;text-transform: capitalize;">${sched.raw.setting }</span>`}</div>`;
-          left.style.cursor = 'pointer';
-          left.onclick = () => showEditScheduleModal(schedules.indexOf(sched));
+          left.innerHTML = `<div style="font-weight:600;color:#fff;font-size:1.05em;">${timeStr}</div><div style="margin-top:6px;color:#ccc;font-size:0.95em;"></div>`;
+          // left.style.cursor = 'pointer';
+          // left.onclick = () => showEditScheduleModal(schedules.indexOf(sched));
+
+          const setting = document.createElement('button');
+          setting.type = 'button';
+          setting.textContent = sched.setting;
+          setting.style.padding = '6px 10px';
+          setting.style.borderRadius = '12px';
+          setting.style.border = 'none';
+          setting.style.cursor = 'pointer';
+          setting.style.textTransform = 'capitalize';
+          setting.className = sched.setting === 'schedule' ? 'control-btn' : 'control-btn on';
+          setting.onclick = async (e) => {
+            e.stopPropagation();
+            showEditScheduleModal(schedules.indexOf(sched));
+          };
+          left.appendChild(setting);
 
           const right = document.createElement('div');
           right.style.display = 'flex';
           right.style.alignItems = 'center';
           right.style.gap = '8px';
+          right.style.marginTop = '26px';
 
           const enableBtn = document.createElement('button');
           enableBtn.type = 'button';
-          enableBtn.textContent = sched.enabled === false ? 'Off' : 'On';
+          enableBtn.textContent = sched.enable === false ? 'Off' : 'On';
           enableBtn.style.padding = '6px 10px';
           enableBtn.style.borderRadius = '12px';
           enableBtn.style.border = 'none';
           enableBtn.style.cursor = 'pointer';
-          enableBtn.className = sched.enabled === false ? 'control-btn' : 'control-btn on';
+          enableBtn.className = sched.enable === false ? 'control-btn' : 'control-btn on';
           enableBtn.onclick = async (e) => {
             e.stopPropagation();
-            sched.enabled = !(sched.enabled !== false);
+            sched.enable = !(sched.enable !== false);
             if (sched.id && sched.id !== -1) {
               try {
-                const { error } = await window.supabase.from('schedule').update({ enable: !!sched.enabled }).eq('id', sched.id);
+                const { error } = await window.supabase.from('schedule').update({ enable: !!sched.enable }).eq('id', sched.id);
                 if (error) throw error;
                 showNotification('Schedule updated', 'success');
               } catch (err) {
@@ -673,14 +688,14 @@ function showScheduleModal(sensorId, sensorData) {
         const title = document.createElement('h3'); title.textContent = sched.id && sched.id !== -1 ? 'Edit Schedule' : 'New Schedule'; title.style.color='#fff'; title.style.marginBottom='12px'; header.appendChild(title);
 
         // state toggle
-        const stateBtn = document.createElement('button'); stateBtn.type='button'; stateBtn.textContent = sched.state?'ON':'OFF'; stateBtn.style.marginBottom='12px'; stateBtn.className = sched.state ? 'control-btn on' : 'control-btn'; stateBtn.onclick = ()=>{ sched.state = !sched.state; stateBtn.textContent = sched.state?'ON':'OFF'; stateBtn.className = sched.state ? 'control-btn on' : 'control-btn'; };
+        const stateBtn = document.createElement('button'); stateBtn.type='button'; stateBtn.textContent = sched.enable?'ON':'OFF'; stateBtn.style.marginBottom='12px'; stateBtn.className = sched.enable ? 'control-btn on' : 'control-btn'; stateBtn.onclick = ()=>{ sched.enable = !sched.enable; stateBtn.textContent = sched.enable?'ON':'OFF'; stateBtn.className = sched.enable ? 'control-btn on' : 'control-btn'; };
         const typeButton = document.createElement('button');
         typeButton.type = 'button';
         // initialize setting if missing
         if (!sched.setting) sched.setting = 'schedule';
-        typeButton.textContent = sched.setting === 'schedule' ? 'Schedule' : 'Timer';
-        typeButton.style.marginBottom = '12px';
-        typeButton.className = sched.setting === 'schedule' ? 'control-btn on' : 'control-btn';
+          typeButton.textContent = sched.setting === 'schedule' ? 'Schedule' : 'Timer';
+          typeButton.style.marginBottom = '12px';
+          typeButton.className = sched.setting === 'schedule' ? 'control-btn on' : 'control-btn';
         typeButton.onclick = () => {
           // toggle between 'schedule' and 'timer'
           sched.setting = sched.setting === 'schedule' ? 'timer' : 'schedule';
@@ -689,7 +704,7 @@ function showScheduleModal(sensorId, sensorData) {
           // update modal title to reflect type
           title.textContent = sched.setting === 'schedule' ? (sched.id && sched.id !== -1 ? 'Edit Schedule' : 'New Schedule') : (sched.id && sched.id !== -1 ? 'Edit Timer' : 'New Timer');
         };
-        header.appendChild(stateBtn);
+        // header.appendChild(stateBtn);
         box.appendChild(typeButton);
 
         // time selectors (24-hour) — provide ON and OFF time picks
@@ -744,7 +759,7 @@ function showScheduleModal(sensorId, sensorData) {
             const offMin = parseInt(offMM.value, 10);
 
             const baseDays = sched.days || [1,2,3,4,5];
-            const enabled = sched.enabled !== false;
+            const enable = sched.enable !== false;
 
             // Build a single schedule row that contains both ON and OFF times
             const idToUse = (sched.id && sched.id !== -1) ? sched.id : -1;
@@ -756,7 +771,7 @@ function showScheduleModal(sensorId, sensorData) {
               timer_on_duration: onTimeStr,
               timer_off_duration: offTimeStr,
               days: baseDays,
-              enabled
+              enable
             });
 
             // Save single row containing both times
@@ -800,7 +815,7 @@ function showScheduleModal(sensorId, sensorData) {
     schedules.push({
       id: -1,
       state: true, // ON/OFF action for IoT
-      enabled: true, // schedule enabled by default
+      enable: true, // schedule enable by default
       hour: 8,
       minute: 0,
       hh24: 8,
