@@ -696,14 +696,13 @@ function showScheduleModal(sensorId, sensorData) {
           .update(payload)
           .eq("id", sched.id);
         if (error) throw error;
-        // Toggle relay using current sensor data's relay1 state if available
-        await sendCommand(sensorId, "relay1", sensorData);
+        // await sendCommand(sensorId, "relay1", sensorData); // Command insertion disabled
         showNotification("Schedule updated", "success");
       } else {
         const { error } = await window.supabase
           .from("schedule")
           .insert([payload]);
-        await sendCommand(sensorId, "relay1", sensorData);
+        // await sendCommand(sensorId, "relay1", sensorData); // Command insertion disabled
         if (error) throw error;
         showNotification("Schedule saved", "success");
       }
@@ -721,7 +720,7 @@ function showScheduleModal(sensorId, sensorData) {
         .from("schedule")
         .delete()
         .eq("id", numericId);
-      await sendCommand(sensorId, "relay1", sensorData);
+      // await sendCommand(sensorId, "relay1", sensorData); // Command insertion disabled
       if (error) throw error;
       showNotification("Schedule deleted", "success");
       await loadSchedulesFromDB(sensorId);
@@ -812,7 +811,7 @@ function showScheduleModal(sensorId, sensorData) {
               .from("schedule")
               .update({ enable: !!sched.enable })
               .eq("id", sched.id);
-            await sendCommand(sensorId, "relay1", sensorData);
+            // await sendCommand(sensorId, "relay1", sensorData); // Command insertion disabled
             if (error) throw error;
             showNotification("Schedule updated", "success");
           } catch (err) {
