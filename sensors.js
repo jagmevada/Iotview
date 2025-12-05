@@ -3,6 +3,7 @@
 
 // Fetch sensor data from Supabase and update the UI
 export async function fetchSensorData() {
+  
   try {
     const { data, error } = await window.supabase
       .from("sensor_data")
