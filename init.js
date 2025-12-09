@@ -79,7 +79,17 @@ window.showTab = function(tabName) {
   }
 })();
 
-// Import main app logic after initializing supabase and exposing globals
-import './app.js';
-import './schedule.js';
-import './sensors.js';
+// Import main app logic after initializing supabase and exposing globals.
+// Use dynamic imports so the client is created and assigned to window.supabase
+// before the other modules execute (they may reference window.supabase at load-time).
+(async () => {
+  try {
+    await import('./app.js');
+    await import('./schedule.js');
+    await import('./sensors.js');
+  } catch (e) {
+    // If dynamic import fails, log so it's easier to debug in the browser console
+    // (this shouldn't happen in normal operation).
+    console.error('Failed to dynamically import app modules:', e);
+  }
+})();
